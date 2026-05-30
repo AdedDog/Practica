@@ -16,25 +16,20 @@ import {
 } from "@/components/ui/sidebar"
 import { PlusIcon } from "lucide-react"
 
-// This is sample data.
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    name: "Команда IT-КУБ",
+    email: "team@example.com",
+    avatar: "",
   },
   calendars: [
     {
-      name: "My Calendars",
-      items: ["Personal", "Work", "Family"],
+      name: "Мероприятия",
+      items: ["Хакатон", "Олимпиада", "Митап"],
     },
     {
-      name: "Favorites",
-      items: ["Holidays", "Birthdays"],
-    },
-    {
-      name: "Other",
-      items: ["Travel", "Reminders", "Deadlines"],
+      name: "Избранное",
+      items: ["Регистрация", "Материалы"],
     },
   ],
 }
@@ -57,7 +52,7 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton>
               <PlusIcon />
-              <span>New Calendar</span>
+              <span>Новое событие</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
