@@ -1,6 +1,5 @@
-"use client"
-
 import * as React from "react"
+import { Link } from "react-router-dom"
 
 import {
   Collapsible,
@@ -39,18 +38,35 @@ export function Calendars({
               <CollapsibleContent>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {calendar.items.map((item, index) => (
-                      <SidebarMenuItem key={item}>
-                        <SidebarMenuButton>
-                          <div
-                            data-active={index < 2}
-                            className="group/calendar-item flex aspect-square size-4 shrink-0 items-center justify-center rounded-sm border border-sidebar-border text-sidebar-primary-foreground data-[active=true]:border-sidebar-primary data-[active=true]:bg-sidebar-primary">
-                            <CheckIcon className="hidden size-3 group-data-[active=true]/calendar-item:block" />
-                          </div>
-                          {item}
+                    {calendar.items.map((item, index) => {
+                      const label = typeof item === "string" ? item : item.label
+                      const href = typeof item === "string" ? null : item.href
+                      const key = href ?? label
+                      return (
+                      <SidebarMenuItem key={key}>
+                        <SidebarMenuButton asChild={Boolean(href)}>
+                          {href ? (
+                            <Link to={href}>
+                              <div
+                                data-active={index === 0}
+                                className="group/calendar-item flex aspect-square size-4 shrink-0 items-center justify-center rounded-sm border border-sidebar-border text-sidebar-primary-foreground data-[active=true]:border-sidebar-primary data-[active=true]:bg-sidebar-primary">
+                                <CheckIcon className="hidden size-3 group-data-[active=true]/calendar-item:block" />
+                              </div>
+                              {label}
+                            </Link>
+                          ) : (
+                            <>
+                              <div
+                                data-active={index === 0}
+                                className="group/calendar-item flex aspect-square size-4 shrink-0 items-center justify-center rounded-sm border border-sidebar-border text-sidebar-primary-foreground data-[active=true]:border-sidebar-primary data-[active=true]:bg-sidebar-primary">
+                                <CheckIcon className="hidden size-3 group-data-[active=true]/calendar-item:block" />
+                              </div>
+                              {label}
+                            </>
+                          )}
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-                    ))}
+                    )})}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </CollapsibleContent>

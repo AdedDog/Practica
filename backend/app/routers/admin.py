@@ -39,6 +39,7 @@ from app.security import (
     hash_code,
     verify_password,
 )
+from app.notifications import otp_delivery_hint
 from app.services import case_to_public, create_otp, verify_otp
 
 router = APIRouter(prefix="/api/admin", tags=["Админ-панель"])
@@ -69,17 +70,17 @@ async def admin_login(body: AdminLoginRequest, db: AsyncSession = Depends(get_db
     if not admin or not verify_password(body.password, admin.password_hash):
         raise HTTPException(status_code=401, detail="Неверный email или пароль")
 
-    await create_otp(
-        db,
-        subject_type=OtpSubject.admin,
-        subject_id=admin.id,
-        channel=OtpChannel.email,
-        destination=admin.email,
-    )
-    return PendingAuthResponse(
-        subject_id=admin.id,
-        message="Код отправлен на email администратора. Смотрите консоль backend.",
-    )
+    try:
+        await create_otp(
+            db,
+            subject_type=OtpSubject.admin,
+            subject_id=admin.id,
+            channel=OtpChannel.email,
+            destination=admin.email,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return PendingAuthResponse(subject_id=admin.id, message=otp_delivery_hint())
 
 
 @router.post("/verify-otp", response_model=TokenResponse, summary="Шаг 2: OTP-код")

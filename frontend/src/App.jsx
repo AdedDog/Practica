@@ -1,26 +1,27 @@
-import { AppSidebar } from "@/components/app-sidebar"
-import { EventSelection } from "@/components/event-selection"
-import { Separator } from "@/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 
-export default function Page() {
+import { DashboardLayout } from "@/components/DashboardLayout"
+import { EventSelection } from "@/components/event-selection"
+import { EventDetailPage } from "@/pages/EventDetailPage"
+import { AdminLoginPage } from "@/pages/AdminLoginPage"
+import { AdminPage } from "@/pages/AdminPage"
+import { TeamCabinetPage } from "@/pages/TeamCabinetPage"
+import { TeamLoginPage } from "@/pages/TeamLoginPage"
+
+export default function App() {
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset className="bg-background">
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 md:hidden">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <span className="text-sm font-medium">Календарь</span>
-        </header>
-        <main className="flex flex-1 flex-col overflow-auto">
-          <EventSelection />
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<DashboardLayout />}>
+          <Route index element={<EventSelection />} />
+          <Route path="events/:slug" element={<EventDetailPage />} />
+          <Route path="cabinet/login" element={<TeamLoginPage />} />
+          <Route path="cabinet" element={<TeamCabinetPage />} />
+          <Route path="admin/login" element={<AdminLoginPage />} />
+          <Route path="admin" element={<AdminPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   )
 }

@@ -1,16 +1,50 @@
-# React + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite + Dashboard (sidebar) + API backend.
 
-Currently, two official plugins are available:
+## Этап 1
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- `src/lib/api.js` — запросы к `/api/*`
+- `src/lib/auth.js` — JWT (для следующих этапов)
+- `vite.config.js` — proxy на backend :8000
+- `event-selection.jsx` — список мероприятий с сервера
+- `EventDetailPage.jsx` — страница мероприятия с кейсами
 
-## React Compiler
+## Запуск
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+cd backend && uvicorn app.main:app --reload
+cd frontend && npm run dev
+```
 
-## Expanding the ESLint configuration
+http://localhost:5173
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Этап 2 — регистрация команды
+
+Компонент `TeamRegistrationForm.jsx` на странице `/events/:slug`:
+
+1. Выбор кейса  
+2. Данные команды (название, капитан, email, телефон)  
+3. Код приглашения → `POST /api/events/:slug/register`  
+
+После успеха показываются **логин и пароль** (один раз).
+
+Демо-код: **DEMO-INVITE** (если ещё не использован — создайте новый в админке).
+
+## Этап 4 — личный кабинет
+
+| URL | Назначение |
+|-----|------------|
+| `/cabinet/login` | Логин + пароль → OTP (код в консоли backend) |
+| `/cabinet` | Профиль, редактирование, смена кейса |
+
+Токен хранится в `localStorage` (`itkub_token`).
+
+## Этап 5 — админ-панель
+
+| URL | Назначение |
+|-----|------------|
+| `/admin/login` | admin@itkub.local / admin123 → OTP |
+| `/admin` | Мероприятия, кейсы, коды, команды, CSV |
+
+Токен админа: `itkub_admin_token` (отдельно от кабинета команды).

@@ -23,10 +23,35 @@ backend/app/
 ```bash
 cd backend
 source .venv/bin/activate
+pip install -r requirements.txt
+cp env.example .env
 uvicorn app.main:app --reload
 ```
 
 Документация: http://127.0.0.1:8000/docs
+
+## OTP на email (Gmail)
+
+1. В Google-аккаунте включите **двухэтапную аутентификацию**.
+2. Создайте **пароль приложения**: [App Passwords](https://myaccount.google.com/apppasswords) → «Почта» / «Другое».
+3. В `backend/.env`:
+
+```env
+DEV_LOG_OTP=false
+SMTP_USER=ваш@gmail.com
+SMTP_PASSWORD=пароль_приложения_16_символов
+ADMIN_EMAIL=ваш@gmail.com
+```
+
+4. Перезапустите uvicorn. При входе команды/админа код уйдёт на **реальный** email из профиля (для админа — `ADMIN_EMAIL`, не `admin@itkub.local`).
+
+Без SMTP или с `DEV_LOG_OTP=true` код по-прежнему печатается в консоль backend.
+
+**Частые проблемы**
+
+- В логе `admin@itkub.local`, а в `.env` другой `ADMIN_EMAIL` — перезапустите uvicorn (seed обновит email в БД). Входите в админку с **тем же email**, что в `ADMIN_EMAIL`.
+- Таймаут на порту 587 — в `.env` поставьте `SMTP_PORT=465` или оставьте `SMTP_FALLBACK_CONSOLE=true`: код появится в консоли, вход не упадёт с 503.
+- Пароль приложения Gmail можно вставлять с пробелами — они убираются автоматически.
 
 ## Этап 2 — проверка API
 
@@ -71,7 +96,7 @@ curl http://127.0.0.1:8000/api/events/hackathon-2026
 
 Двухшаговый вход:
 
-1. `POST /api/team/login` — логин + пароль → в консоли backend появится OTP-код  
+1. `POST /api/team/login` — логин + пароль → OTP на email (или в консоли backend, см. Gmail выше)  
 2. `POST /api/team/verify-otp?subject_id=1` — ввод кода → получаете `access_token`
 
 Дальше в заголовке запросов: `Authorization: Bearer <token>`
@@ -83,14 +108,20 @@ curl http://127.0.0.1:8000/api/events/hackathon-2026
 | PATCH | `/api/team/me/case` | Сменить кейс |
 | POST | `/api/team/resend-otp?subject_id=1` | Повторно отправить код (email или sms) |
 
+## Публичный список мероприятий
+
+На главной (`GET /api/events`) показываются только мероприятия со статусом **active**. Черновик (`draft`) и завершённые (`closed`) видны только в админке — нажмите «Активировать» после создания.
+
 ## Этап 5 — админ-панель
 
-**Тестовый админ** (создаётся при старте, если админов ещё нет):
+**Тестовый админ** (создаётся при старте; пароль синхронизируется с `ADMIN_PASSWORD` из `.env`, по умолчанию `admin123`):
 
 - Email: `admin@itkub.local`
 - Пароль: `admin123`
 
-Вход как у команды: `POST /api/admin/login` → OTP в консоли → `POST /api/admin/verify-otp?subject_id=1`
+**Вход в UI** (`http://localhost:5173/admin/login`): шаг 1 — email и пароль → шаг 2 — OTP на почту `ADMIN_EMAIL` (или в консоли uvicorn без Gmail).
+
+Вход через API: `POST /api/admin/login` → OTP → `POST /api/admin/verify-otp?subject_id=1`
 
 | Метод | URL |
 |-------|-----|

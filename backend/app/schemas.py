@@ -154,7 +154,7 @@ class EventAdminCreate(BaseModel):
     title: str
     slug: str
     description: str = ""
-    status: EventStatus = EventStatus.draft
+    status: EventStatus = EventStatus.active
     registration_open: bool = True
     cases: list[CaseAdminInput] = []
 

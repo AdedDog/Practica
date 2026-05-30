@@ -24,6 +24,7 @@ from app.schemas import (
     TokenResponse,
 )
 from app.security import create_access_token, validate_email, validate_phone, verify_password
+from app.notifications import otp_delivery_hint
 from app.services import count_teams_in_case, create_otp, verify_otp
 
 router = APIRouter(prefix="/api/team", tags=["Личный кабинет команды"])
@@ -61,18 +62,17 @@ async def team_login(body: TeamLoginRequest, db: AsyncSession = Depends(get_db))
     if not team or not verify_password(body.password, team.password_hash):
         raise HTTPException(status_code=401, detail="Неверный логин или пароль")
 
-    # Отправляем OTP на email — без него токен не выдаём (2FA)
-    await create_otp(
-        db,
-        subject_type=OtpSubject.team,
-        subject_id=team.id,
-        channel=OtpChannel.email,
-        destination=team.email,
-    )
-    return PendingAuthResponse(
-        subject_id=team.id,
-        message="Код отправлен на email, указанный при регистрации. Смотрите консоль backend.",
-    )
+    try:
+        await create_otp(
+            db,
+            subject_type=OtpSubject.team,
+            subject_id=team.id,
+            channel=OtpChannel.email,
+            destination=team.email,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return PendingAuthResponse(subject_id=team.id, message=otp_delivery_hint())
 
 
 @router.post("/verify-otp", response_model=TokenResponse, summary="Шаг 2: ввод OTP-кода")
@@ -102,14 +102,17 @@ async def team_resend_otp(
 
     channel = OtpChannel.sms if body.channel == "sms" else OtpChannel.email
     destination = team.phone if channel == OtpChannel.sms else team.email
-    await create_otp(
-        db,
-        subject_type=OtpSubject.team,
-        subject_id=team.id,
-        channel=channel,
-        destination=destination,
-    )
-    return {"message": "Код отправлен повторно"}
+    try:
+        await create_otp(
+            db,
+            subject_type=OtpSubject.team,
+            subject_id=team.id,
+            channel=channel,
+            destination=destination,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {"message": otp_delivery_hint()}
 
 
 @router.get("/me", response_model=TeamProfile, summary="Профиль команды")

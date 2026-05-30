@@ -23,16 +23,24 @@ async def seed_demo_data() -> None:
     - invite-код DEMO-INVITE
     """
     async with SessionLocal() as db:
-        # --- Администратор ---
-        admin_exists = await db.execute(select(AdminUser).limit(1))
-        if not admin_exists.scalar_one_or_none():
+        # --- Администратор (создаём или обновляем пароль демо-учётки) ---
+        admin_result = await db.execute(
+            select(AdminUser).where(AdminUser.email == settings.admin_email.lower())
+        )
+        admin = admin_result.scalar_one_or_none()
+        demo_hash = hash_password(settings.admin_password)
+        if not admin:
             db.add(
                 AdminUser(
                     email=settings.admin_email.lower(),
                     phone=settings.admin_phone,
-                    password_hash=hash_password(settings.admin_password),
+                    password_hash=demo_hash,
                 )
             )
+        else:
+            admin.password_hash = demo_hash
+            admin.email = settings.admin_email.lower()
+            admin.phone = settings.admin_phone
 
         # --- Мероприятие ---
         result = await db.execute(select(Event).where(Event.slug == "hackathon-2026"))
@@ -72,11 +80,29 @@ async def seed_demo_data() -> None:
                 ]
             )
 
+            
+
         # --- Код приглашения (если у мероприятия ещё нет ни одного) ---
         invite_exists = await db.execute(
             select(InviteCode).where(InviteCode.event_id == event.id).limit(1)
         )
         if not invite_exists.scalar_one_or_none():
+            db.add(
+                InviteCode(
+                    event_id=event.id,
+                    code_hash=hash_code(DEMO_INVITE_CODE),
+                    label="Демо-код для тестов",
+                )
+            )
+
+        # --- Демо: если все коды уже использованы, добавляем новый DEMO-INVITE ---
+        unused_invite = await db.execute(
+            select(InviteCode).where(
+                InviteCode.event_id == event.id,
+                InviteCode.used_at.is_(None),
+            ).limit(1)
+        )
+        if not unused_invite.scalar_one_or_none():
             db.add(
                 InviteCode(
                     event_id=event.id,
