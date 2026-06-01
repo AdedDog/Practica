@@ -12,12 +12,28 @@ React + Vite + Dashboard (sidebar) + API backend.
 
 ## Запуск
 
+Работайте из каталога `Practica/frontend` (не из корзины или копии проекта).
+
 ```bash
-cd backend && uvicorn app.main:app --reload
-cd frontend && npm run dev
+cd backend && source .venv/bin/activate && uvicorn app.main:app --reload
+```
+
+В другом терминале:
+
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
 http://localhost:5173
+
+Если `vite: command not found` или ошибка про `rolldown` / native binding:
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
 
 ## Этап 2 — регистрация команды
 

@@ -5,11 +5,22 @@ Pydantic-схемы: формат JSON на вход и выход API.
 Можно не отдавать лишние поля (например password_hash).
 """
 
-from datetime import datetime
+from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.models import EventStatus
+
+
+class EventDatesMixin(BaseModel):
+    start_date: date | None = None
+    end_date: date | None = None
+
+    @model_validator(mode="after")
+    def validate_event_dates(self):
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValueError("Дата окончания не может быть раньше даты начала")
+        return self
 
 
 # --- Публичная часть (этап 2) ---
@@ -36,6 +47,8 @@ class EventListItem(BaseModel):
     description: str
     status: EventStatus
     registration_open: bool
+    start_date: date | None = None
+    end_date: date | None = None
     free_spots: int
 
 
@@ -48,6 +61,8 @@ class EventPublic(BaseModel):
     description: str
     status: EventStatus
     registration_open: bool
+    start_date: date | None = None
+    end_date: date | None = None
     cases: list[CasePublic]
 
 
@@ -150,7 +165,7 @@ class CaseAdminInput(BaseModel):
     team_limit: int = 10
 
 
-class EventAdminCreate(BaseModel):
+class EventAdminCreate(EventDatesMixin):
     title: str
     slug: str
     description: str = ""
@@ -159,7 +174,7 @@ class EventAdminCreate(BaseModel):
     cases: list[CaseAdminInput] = []
 
 
-class EventAdminUpdate(BaseModel):
+class EventAdminUpdate(EventDatesMixin):
     """PATCH — только переданные поля (model_dump exclude_unset)."""
 
     title: str | None = None
@@ -176,17 +191,21 @@ class EventAdminDetail(BaseModel):
     description: str
     status: EventStatus
     registration_open: bool
+    start_date: date | None = None
+    end_date: date | None = None
     cases: list[CasePublic]
     created_at: datetime
 
 
 class InviteCodeItem(BaseModel):
-    """Список кодов в админке — без самого кода (только факт использования)."""
+    """Список кодов в админке."""
 
     id: int
+    code: str | None
     label: str | None
     used: bool
     used_at: datetime | None
+    team_name: str | None = None
     created_at: datetime
 
 

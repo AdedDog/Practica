@@ -5,13 +5,21 @@
 и настраивается CORS — чтобы frontend на localhost:5173 мог ходить к API.
 """
 
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s %(name)s: %(message)s",
+)
+logging.getLogger("app.notifications").setLevel(logging.INFO)
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
+from app.migrations import run_migrations
 from app.routers import admin, public, registration, team
 from app.seed import seed_demo_data
 import app.models  # noqa: F401 — важно: без этого import таблицы не создадутся в БД
@@ -30,6 +38,7 @@ async def lifespan(app: FastAPI):
     Path("data").mkdir(exist_ok=True)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(run_migrations)
     await seed_demo_data()
     yield  # здесь сервер работает и принимает запросы
 

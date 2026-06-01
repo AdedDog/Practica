@@ -85,7 +85,8 @@ export function TeamRegistrationForm({
             <strong>{success.password}</strong>
           </p>
           <p className="text-xs text-muted-foreground">
-            Сохраните данные — пароль больше не показывается.
+            Сохраните данные — пароль больше не показывается на сайте. Код приглашения,
+            логин и пароль также уходят на email команды (или в консоль backend при разработке).
           </p>
           <Button asChild className="mt-2">
             <Link to="/cabinet/login">Войти в личный кабинет</Link>

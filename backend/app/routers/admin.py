@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -55,6 +55,8 @@ async def _event_detail(db: AsyncSession, event: Event) -> EventAdminDetail:
         description=event.description,
         status=event.status,
         registration_open=event.registration_open,
+        start_date=event.start_date,
+        end_date=event.end_date,
         cases=cases,
         created_at=event.created_at,
     )
@@ -129,6 +131,8 @@ async def admin_create_event(
         description=body.description,
         status=body.status,
         registration_open=body.registration_open,
+        start_date=body.start_date,
+        end_date=body.end_date,
     )
     db.add(event)
     await db.flush()
@@ -176,6 +180,27 @@ async def admin_update_event(
     await db.commit()
     await db.refresh(event)
     return await _event_detail(db, event)
+
+
+@router.delete("/events/{event_id}", status_code=204, summary="Удалить мероприятие")
+async def admin_delete_event(
+    event_id: int,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Event).where(Event.id == event_id))
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Мероприятие не найдено")
+
+    await db.execute(
+        update(InviteCode).where(InviteCode.event_id == event_id).values(team_id=None)
+    )
+    await db.execute(delete(Team).where(Team.event_id == event_id))
+    await db.execute(delete(InviteCode).where(InviteCode.event_id == event_id))
+    await db.execute(delete(CaseDirection).where(CaseDirection.event_id == event_id))
+    await db.delete(event)
+    await db.commit()
 
 
 @router.post("/events/{event_id}/cases", response_model=CasePublic, summary="Добавить кейс")
@@ -241,15 +266,18 @@ async def admin_list_invites(
     result = await db.execute(
         select(InviteCode)
         .where(InviteCode.event_id == event_id)
+        .options(selectinload(InviteCode.team))
         .order_by(InviteCode.created_at.desc())
     )
     codes = result.scalars().all()
     return [
         InviteCodeItem(
             id=c.id,
+            code=c.code,
             label=c.label,
             used=c.used_at is not None,
             used_at=c.used_at,
+            team_name=c.team.team_name if c.team else None,
             created_at=c.created_at,
         )
         for c in codes
@@ -277,6 +305,7 @@ async def admin_create_invites(
         db.add(
             InviteCode(
                 event_id=event_id,
+                code=code,
                 code_hash=hash_code(code),
                 label=body.label,
             )
@@ -286,8 +315,33 @@ async def admin_create_invites(
     await db.commit()
     return InviteCodesCreated(
         codes=created_codes,
-        message="Сохраните коды — повторно они не отображаются.",
+        message="Коды добавлены в список ниже.",
     )
+
+
+@router.delete(
+    "/events/{event_id}/invite-codes/{invite_id}",
+    status_code=204,
+    summary="Удалить код приглашения",
+)
+async def admin_delete_invite(
+    event_id: int,
+    invite_id: int,
+    admin: AdminUser = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(InviteCode).where(
+            InviteCode.id == invite_id,
+            InviteCode.event_id == event_id,
+        )
+    )
+    invite = result.scalar_one_or_none()
+    if not invite:
+        raise HTTPException(status_code=404, detail="Код приглашения не найден")
+
+    await db.delete(invite)
+    await db.commit()
 
 
 @router.get("/events/{event_id}/export", summary="Экспорт CSV")

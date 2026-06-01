@@ -42,6 +42,8 @@ async def list_events(db: AsyncSession = Depends(get_db)):
                 description=event.description,
                 status=event.status,
                 registration_open=event.registration_open,
+                start_date=event.start_date,
+                end_date=event.end_date,
                 free_spots=await event_free_spots(db, event),
             )
         )
@@ -70,5 +72,7 @@ async def get_event(slug: str, db: AsyncSession = Depends(get_db)):
         description=event.description,
         status=event.status,
         registration_open=event.registration_open,
+        start_date=event.start_date,
+        end_date=event.end_date,
         cases=cases,
     )

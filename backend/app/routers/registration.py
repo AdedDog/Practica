@@ -21,6 +21,7 @@ from app.security import (
     validate_email,
     validate_phone,
 )
+from app.notifications import registration_delivery_hint, send_team_registration_email
 from app.services import count_teams_in_case, find_valid_invite
 
 router = APIRouter(prefix="/api/events", tags=["Регистрация команды"])
@@ -66,7 +67,8 @@ async def register_team(slug: str, body: TeamRegisterRequest, db: AsyncSession =
         raise HTTPException(status_code=400, detail="В выбранном кейсе нет свободных мест")
 
     # --- Код приглашения (одноразовый) ---
-    invite = await find_valid_invite(db, event.id, body.invite_code)
+    invite_code = body.invite_code.strip().upper()
+    invite = await find_valid_invite(db, event.id, invite_code)
     if not invite:
         raise HTTPException(status_code=400, detail="Неверный или уже использованный код приглашения")
 
@@ -102,8 +104,24 @@ async def register_team(slug: str, body: TeamRegisterRequest, db: AsyncSession =
     invite.team_id = team.id
     await db.commit()
 
+    send_team_registration_email(
+        team.email,
+        event_title=event.title,
+        case_name=case.name,
+        team_name=team.team_name,
+        captain_name=team.captain_name,
+        invite_code=invite_code,
+        login=login,
+        password=password,
+    )
+
+    message = (
+        "Сохраните логин и пароль — они понадобятся для входа в личный кабинет. "
+        + registration_delivery_hint()
+    )
+
     return TeamRegisterResponse(
         login=login,
         password=password,
-        message="Сохраните логин и пароль — они понадобятся для входа в личный кабинет.",
+        message=message,
     )

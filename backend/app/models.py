@@ -6,9 +6,9 @@ relationship — связи «один ко многим» между табли
 """
 
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -56,10 +56,15 @@ class Event(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[EventStatus] = mapped_column(Enum(EventStatus), default=EventStatus.draft)
     registration_open: Mapped[bool] = mapped_column(Boolean, default=True)  # можно закрыть отдельно от status
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # связанные кейсы и команды (подгружаются через selectinload в запросах)
-    cases: Mapped[list["CaseDirection"]] = relationship(back_populates="event")
+    # passive_deletes: при db.delete(event) не обнулять event_id — полагаемся на CASCADE / явное удаление
+    cases: Mapped[list["CaseDirection"]] = relationship(
+        back_populates="event", passive_deletes=True
+    )
     teams: Mapped[list["Team"]] = relationship(back_populates="event")
 
 
@@ -85,13 +90,15 @@ class InviteCode(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     event_id: Mapped[int] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"))
-    code_hash: Mapped[str] = mapped_column(String(255))  # в БД храним хеш, не сам код
+    code: Mapped[str | None] = mapped_column(String(32), nullable=True)  # для админки
+    code_hash: Mapped[str] = mapped_column(String(255))  # для проверки при регистрации
     label: Mapped[str | None] = mapped_column(String(64), nullable=True)  # пометка для админа
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     event: Mapped["Event"] = relationship()
+    team: Mapped["Team | None"] = relationship(foreign_keys=[team_id])
 
 
 class Team(Base):

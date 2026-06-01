@@ -6,7 +6,7 @@ import { ApiError, getEvent } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
+import { cn, formatEventDateRange } from "@/lib/utils"
 
 /**
  * Страница мероприятия: кейсы + регистрация команды в модальном окне.
@@ -56,6 +56,11 @@ export function EventDetailPage() {
           <Link to="/">← Все мероприятия</Link>
         </Button>
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{event.title}</h1>
+        {formatEventDateRange(event.start_date, event.end_date) ? (
+          <p className="mt-2 text-sm font-medium text-foreground">
+            {formatEventDateRange(event.start_date, event.end_date)}
+          </p>
+        ) : null}
         <p className="mt-2 text-muted-foreground">{event.description}</p>
       </div>
 

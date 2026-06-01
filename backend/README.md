@@ -88,6 +88,8 @@ curl http://127.0.0.1:8000/api/events/hackathon-2026
 
 Ответ: `login` и `password` для личного кабинета (этап 4).
 
+На **email команды** уходит письмо: код приглашения, логин и пароль (при настроенном Gmail SMTP или в консоль uvicorn при `DEV_LOG_OTP=true`).
+
 Демо-код приглашения: **`DEMO-INVITE`** (создаётся при старте сервера).
 
 Проверки: email, телефон, лимит мест в кейсе, одноразовый код, уникальное имя команды.
@@ -128,9 +130,11 @@ curl http://127.0.0.1:8000/api/events/hackathon-2026
 | GET | `/api/admin/events` |
 | POST | `/api/admin/events` |
 | PATCH | `/api/admin/events/{id}` |
+| DELETE | `/api/admin/events/{id}` |
 | POST | `/api/admin/events/{id}/cases` |
 | GET | `/api/admin/events/{id}/teams` |
 | GET/POST | `/api/admin/events/{id}/invite-codes` |
+| DELETE | `/api/admin/events/{id}/invite-codes/{invite_id}` |
 | GET | `/api/admin/events/{id}/export` — скачать CSV |
 
 Все маршруты (кроме login/verify-otp) требуют заголовок `Authorization: Bearer <token>`.

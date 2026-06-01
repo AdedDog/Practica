@@ -2,7 +2,6 @@ import * as React from "react"
 import { Link, useLocation } from "react-router-dom"
 
 import { Calendars } from "@/components/calendars"
-import { DatePicker } from "@/components/date-picker"
 import { NavUser } from "@/components/nav-user"
 import { getEvents } from "@/lib/api"
 import {
@@ -21,30 +20,15 @@ export function AppSidebar({
   ...props
 }) {
   const location = useLocation()
-  const [eventItems, setEventItems] = React.useState([])
+  const [events, setEvents] = React.useState([])
 
   React.useEffect(() => {
     getEvents()
-      .then((list) =>
-        setEventItems(
-          list.map((ev) => ({
-            label: ev.title,
-            href: `/events/${ev.slug}`,
-          }))
-        )
-      )
-      .catch(() => setEventItems([]))
+      .then(setEvents)
+      .catch(() => setEvents([]))
   }, [location.pathname])
 
-  const calendars = [
-    {
-      name: "Мероприятия",
-      items:
-        eventItems.length > 0
-          ? eventItems
-          : [{ label: "Нет активных мероприятий", href: "/" }],
-    },
-  ]
+  const calendars = [{ name: "Мероприятия" }]
 
   return (
     <Sidebar {...props}>
@@ -52,33 +36,18 @@ export function AppSidebar({
         <NavUser />
       </SidebarHeader>
       <SidebarContent>
-        <DatePicker />
-        <SidebarSeparator className="mx-0" />
-        <Calendars calendars={calendars} />
+        <Calendars calendars={calendars} events={events} />
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <Link to="/">
-                <span>Мероприятия</span>
+                <span>ВСЕ МЕРОПРИЯТИЯ</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link to="/cabinet/login">
-                <span>Личный кабинет</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <Link to="/admin/login">
-                <span>Админ-панель</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />

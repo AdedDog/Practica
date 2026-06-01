@@ -6,25 +6,37 @@ import {
   adminAddCase,
   adminCreateEvent,
   adminCreateInvites,
+  adminDeleteEvent,
+  adminDeleteInvite,
   adminExportCsv,
   adminListEvents,
   adminListInvites,
   adminListTeams,
   adminUpdateEvent,
 } from "@/lib/api"
+import { Check, Copy, Trash2 } from "lucide-react"
 import { clearAdminToken, getAdminToken } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { DateRangePicker } from "@/components/date-range-picker"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { cn, formatEventDateRange, slugFromTitle } from "@/lib/utils"
 
 /**
  * Админ-панель: мероприятия, статистика, команды, коды, CSV.
@@ -39,16 +51,24 @@ export function AdminPage() {
   const [error, setError] = useState("")
   const [createdCodes, setCreatedCodes] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [slugManual, setSlugManual] = useState(false)
 
   const [newEvent, setNewEvent] = useState({
     title: "",
     slug: "",
     description: "",
+    start_date: "",
+    end_date: "",
     caseName: "",
     caseLimit: 5,
   })
+  const [eventDates, setEventDates] = useState({ start_date: "", end_date: "" })
   const [newCase, setNewCase] = useState({ name: "", description: "", team_limit: 5 })
   const [inviteCount, setInviteCount] = useState(3)
+  const [deletingInviteId, setDeletingInviteId] = useState(null)
+  const [copiedInviteId, setCopiedInviteId] = useState(null)
+  const [deleteEventOpen, setDeleteEventOpen] = useState(false)
+  const [deletingEvent, setDeletingEvent] = useState(false)
 
   const selected = events.find((e) => e.id === selectedId)
 
@@ -64,6 +84,17 @@ export function AdminPage() {
     if (!selectedId) return
     loadEventDetails(selectedId)
   }, [selectedId])
+
+  useEffect(() => {
+    if (!selected) {
+      setEventDates({ start_date: "", end_date: "" })
+      return
+    }
+    setEventDates({
+      start_date: selected.start_date ?? "",
+      end_date: selected.end_date ?? "",
+    })
+  }, [selected])
 
   async function loadEvents() {
     setLoading(true)
@@ -106,6 +137,8 @@ export function AdminPage() {
         title: newEvent.title,
         slug: newEvent.slug,
         description: newEvent.description,
+        start_date: newEvent.start_date || null,
+        end_date: newEvent.end_date || null,
         status: "active",
         registration_open: true,
         cases: newEvent.caseName
@@ -113,7 +146,16 @@ export function AdminPage() {
           : [],
       })
       setShowCreate(false)
-      setNewEvent({ title: "", slug: "", description: "", caseName: "", caseLimit: 5 })
+      setSlugManual(false)
+      setNewEvent({
+        title: "",
+        slug: "",
+        description: "",
+        start_date: "",
+        end_date: "",
+        caseName: "",
+        caseLimit: 5,
+      })
       await loadEvents()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Ошибка")
@@ -130,6 +172,21 @@ export function AdminPage() {
     if (!selected) return
     await adminUpdateEvent(selected.id, { status: "closed", registration_open: false })
     await loadEvents()
+  }
+
+  async function handleSaveEventDates(e) {
+    e.preventDefault()
+    if (!selected) return
+    setError("")
+    try {
+      await adminUpdateEvent(selected.id, {
+        start_date: eventDates.start_date || null,
+        end_date: eventDates.end_date || null,
+      })
+      await loadEvents()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Ошибка сохранения дат")
+    }
   }
 
   async function handleAddCase(e) {
@@ -156,6 +213,59 @@ export function AdminPage() {
     }
   }
 
+  async function handleCopyInviteCode(invite) {
+    if (!invite.code) return
+    try {
+      await navigator.clipboard.writeText(invite.code)
+      setCopiedInviteId(invite.id)
+      window.setTimeout(() => setCopiedInviteId(null), 2000)
+    } catch {
+      setError("Не удалось скопировать код в буфер обмена")
+    }
+  }
+
+  async function handleDeleteEvent() {
+    if (!selected) return
+    setDeletingEvent(true)
+    setError("")
+    try {
+      await adminDeleteEvent(selected.id)
+      const deletedId = selected.id
+      setDeleteEventOpen(false)
+      setTeams([])
+      setInvites([])
+      setCreatedCodes(null)
+      const list = await adminListEvents()
+      setEvents(list)
+      if (list.length) {
+        setSelectedId(list.find((e) => e.id !== deletedId)?.id ?? list[0].id)
+      } else {
+        setSelectedId(null)
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Не удалось удалить мероприятие")
+    } finally {
+      setDeletingEvent(false)
+    }
+  }
+
+  async function handleDeleteInvite(invite) {
+    if (!selected) return
+    const label = invite.code || `#${invite.id}`
+    if (!window.confirm(`Удалить код приглашения «${label}»?`)) return
+
+    setDeletingInviteId(invite.id)
+    setError("")
+    try {
+      await adminDeleteInvite(selected.id, invite.id)
+      setInvites((list) => list.filter((c) => c.id !== invite.id))
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Не удалось удалить код")
+    } finally {
+      setDeletingInviteId(null)
+    }
+  }
+
   function handleLogout() {
     clearAdminToken()
     navigate("/admin/login")
@@ -178,7 +288,14 @@ export function AdminPage() {
           <p className="text-sm text-muted-foreground">Управление мероприятиями и регистрациями</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowCreate(!showCreate)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (showCreate) setSlugManual(false)
+              setShowCreate(!showCreate)
+            }}
+          >
             {showCreate ? "Отмена" : "Новое мероприятие"}
           </Button>
           <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -203,18 +320,31 @@ export function AdminPage() {
                   <FieldLabel>Название</FieldLabel>
                   <Input
                     value={newEvent.title}
-                    onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                    onChange={(e) => {
+                      const title = e.target.value
+                      setNewEvent((prev) => ({
+                        ...prev,
+                        title,
+                        slug: slugManual ? prev.slug : slugFromTitle(title),
+                      }))
+                    }}
                     required
                   />
                 </Field>
                 <Field>
-                  <FieldLabel>Slug (URL)</FieldLabel>
+                  <FieldLabel>Slug URL</FieldLabel>
                   <Input
                     value={newEvent.slug}
-                    onChange={(e) => setNewEvent({ ...newEvent, slug: e.target.value })}
-                    placeholder="my-event-2026"
+                    onChange={(e) => {
+                      setSlugManual(true)
+                      setNewEvent({ ...newEvent, slug: e.target.value })
+                    }}
+                    placeholder="hackathon-2026"
                     required
                   />
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    /events/{newEvent.slug || "…"}
+                  </p>
                 </Field>
                 <Field className="sm:col-span-2">
                   <FieldLabel>Описание</FieldLabel>
@@ -223,6 +353,16 @@ export function AdminPage() {
                     onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
                   />
                 </Field>
+                <DateRangePicker
+                  id="new-event-dates"
+                  className="sm:col-span-2"
+                  label="Период мероприятия"
+                  startDate={newEvent.start_date}
+                  endDate={newEvent.end_date}
+                  onChange={({ start_date, end_date }) =>
+                    setNewEvent({ ...newEvent, start_date, end_date })
+                  }
+                />
                 <Field>
                   <FieldLabel>Первый кейс</FieldLabel>
                   <Input
@@ -267,7 +407,9 @@ export function AdminPage() {
                 )}
               >
                 <span className="font-medium">{ev.title}</span>
-                <span className="mt-0.5 block text-xs opacity-80">{ev.status}</span>
+                <span className="mt-0.5 block text-xs opacity-80">
+                  {formatEventDateRange(ev.start_date, ev.end_date) ?? ev.status}
+                </span>
               </button>
             ))}
           </CardContent>
@@ -279,8 +421,30 @@ export function AdminPage() {
               <CardHeader>
                 <CardTitle>{selected.title}</CardTitle>
                 <CardDescription>{selected.slug}</CardDescription>
+                <CardAction>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setDeleteEventOpen(true)}
+                  >
+                    Удалить мероприятие
+                  </Button>
+                </CardAction>
               </CardHeader>
               <CardContent className="space-y-3">
+                <form onSubmit={handleSaveEventDates} className="flex flex-wrap items-end gap-3">
+                  <DateRangePicker
+                    id="edit-event-dates"
+                    className="min-w-[280px] flex-1"
+                    label="Период мероприятия"
+                    startDate={eventDates.start_date}
+                    endDate={eventDates.end_date}
+                    onChange={setEventDates}
+                  />
+                  <Button type="submit" size="sm" variant="secondary">
+                    Сохранить даты
+                  </Button>
+                </form>
                 {selected.status !== "active" && (
                   <p className="text-sm text-amber-700 dark:text-amber-400">
                     Статус «{selected.status}» — на главной странице мероприятие не
@@ -309,6 +473,37 @@ export function AdminPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <Dialog open={deleteEventOpen} onOpenChange={setDeleteEventOpen}>
+              <DialogContent showCloseButton={!deletingEvent}>
+                <DialogHeader>
+                  <DialogTitle>Удалить мероприятие?</DialogTitle>
+                  <DialogDescription>
+                    Мероприятие «{selected.title}» и все связанные данные будут удалены
+                    безвозвратно: кейсы ({selected.cases.length}), команды ({teams.length}),
+                    коды приглашения ({invites.length}).
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex justify-end gap-2 p-6 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={deletingEvent}
+                    onClick={() => setDeleteEventOpen(false)}
+                  >
+                    Отмена
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={deletingEvent}
+                    onClick={handleDeleteEvent}
+                  >
+                    {deletingEvent ? "Удаление…" : "Удалить"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             <Card>
               <CardHeader>
@@ -370,43 +565,6 @@ export function AdminPage() {
                 </form>
               </CardContent>
             </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-base">Коды приглашения</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={50}
-                    className="w-16 h-8"
-                    value={inviteCount}
-                    onChange={(e) => setInviteCount(Number(e.target.value))}
-                  />
-                  <Button size="sm" onClick={handleCreateInvites}>
-                    Сгенерировать
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {createdCodes && (
-                  <p className="mb-3 rounded-lg bg-primary/10 p-3 font-mono text-sm">
-                    Новые коды: {createdCodes.join(", ")}
-                  </p>
-                )}
-                <ul className="space-y-1 text-sm">
-                  {invites.map((c) => (
-                    <li key={c.id} className="flex justify-between border-b py-1">
-                      <span>{c.label || `#${c.id}`}</span>
-                      <span className={c.used ? "text-destructive" : "text-muted-foreground"}>
-                        {c.used ? "использован" : "свободен"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
@@ -440,6 +598,92 @@ export function AdminPage() {
                 )}
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">Коды приглашения</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    className="w-16 h-8"
+                    value={inviteCount}
+                    onChange={(e) => setInviteCount(Number(e.target.value))}
+                  />
+                  <Button size="sm" onClick={handleCreateInvites}>
+                    Сгенерировать
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {createdCodes && (
+                  <p className="mb-3 rounded-lg bg-primary/10 p-3 font-mono text-sm">
+                    Новые коды: {createdCodes.join(", ")}
+                  </p>
+                )}
+                <ul className="space-y-1 text-sm">
+                  {invites.map((c) => (
+                    <li
+                      key={c.id}
+                      className="flex items-center justify-between gap-2 border-b py-1"
+                    >
+                      <span className="flex min-w-0 items-center gap-0.5">
+                        <span className="font-mono font-medium">
+                          {c.code || "—"}
+                        </span>
+                        {c.code ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-muted-foreground hover:text-foreground"
+                            aria-label={
+                              copiedInviteId === c.id
+                                ? "Код скопирован"
+                                : `Скопировать код ${c.code}`
+                            }
+                            onClick={() => handleCopyInviteCode(c)}
+                          >
+                            {copiedInviteId === c.id ? <Check /> : <Copy />}
+                          </Button>
+                        ) : null}
+                        {c.label ? (
+                          <span className="ml-1 text-muted-foreground">({c.label})</span>
+                        ) : null}
+                      </span>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span
+                          className={cn(
+                            "text-xs",
+                            c.used ? "text-destructive" : "text-muted-foreground"
+                          )}
+                        >
+                          {c.used
+                            ? c.team_name
+                              ? `использован: «${c.team_name}»`
+                              : "использован"
+                            : "свободен"}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-muted-foreground hover:text-destructive"
+                          disabled={deletingInviteId === c.id}
+                          aria-label={`Удалить код ${c.code || c.id}`}
+                          onClick={() => handleDeleteInvite(c)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+           
           </div>
         ) : (
           <Card>

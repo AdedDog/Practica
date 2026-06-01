@@ -4,6 +4,8 @@
 Нужны, чтобы сразу можно было тестировать API без ручного ввода в БД.
 """
 
+from datetime import date
+
 from sqlalchemy import select
 
 from app.database import SessionLocal
@@ -53,6 +55,8 @@ async def seed_demo_data() -> None:
                 description="Демо-мероприятие для проверки регистрации команд.",
                 status=EventStatus.active,
                 registration_open=True,
+                start_date=date(2026, 6, 1),
+                end_date=date(2026, 6, 3),
             )
             db.add(event)
             await db.flush()  # flush — чтобы появился event.id для кейсов
@@ -82,6 +86,10 @@ async def seed_demo_data() -> None:
 
             
 
+        if event and event.start_date is None:
+            event.start_date = date(2026, 6, 1)
+            event.end_date = date(2026, 6, 3)
+
         # --- Код приглашения (если у мероприятия ещё нет ни одного) ---
         invite_exists = await db.execute(
             select(InviteCode).where(InviteCode.event_id == event.id).limit(1)
@@ -90,6 +98,7 @@ async def seed_demo_data() -> None:
             db.add(
                 InviteCode(
                     event_id=event.id,
+                    code=DEMO_INVITE_CODE,
                     code_hash=hash_code(DEMO_INVITE_CODE),
                     label="Демо-код для тестов",
                 )
@@ -106,6 +115,7 @@ async def seed_demo_data() -> None:
             db.add(
                 InviteCode(
                     event_id=event.id,
+                    code=DEMO_INVITE_CODE,
                     code_hash=hash_code(DEMO_INVITE_CODE),
                     label="Демо-код для тестов",
                 )

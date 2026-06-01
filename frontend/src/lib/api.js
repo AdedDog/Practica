@@ -139,6 +139,13 @@ export function adminUpdateEvent(eventId, body) {
   });
 }
 
+export function adminDeleteEvent(eventId) {
+  return apiFetch(`/admin/events/${eventId}`, {
+    method: "DELETE",
+    auth: "admin",
+  });
+}
+
 export function adminAddCase(eventId, body) {
   return apiFetch(`/admin/events/${eventId}/cases`, {
     method: "POST",
@@ -160,6 +167,13 @@ export function adminCreateInvites(eventId, body) {
     method: "POST",
     auth: "admin",
     body: JSON.stringify(body),
+  });
+}
+
+export function adminDeleteInvite(eventId, inviteId) {
+  return apiFetch(`/admin/events/${eventId}/invite-codes/${inviteId}`, {
+    method: "DELETE",
+    auth: "admin",
   });
 }
 

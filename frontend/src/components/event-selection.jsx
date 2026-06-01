@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react"
-import { Link, useLocation } from "react-router-dom"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { Link, useLocation, useSearchParams } from "react-router-dom"
 
 import { ApiError, getEvents } from "@/lib/api"
-import { cn } from "@/lib/utils"
+import { cn, eventOnDate, formatEventDateRange, parseIsoDate } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 
@@ -95,6 +95,12 @@ function EventCard({ event, selected, onSelect }) {
           <h3 className="text-base font-semibold leading-snug text-foreground">
             {event.title}
           </h3>
+          {(() => {
+            const dates = formatEventDateRange(event.start_date, event.end_date)
+            return dates ? (
+              <p className="text-sm text-muted-foreground">{dates}</p>
+            ) : null
+          })()}
           <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">
             {event.description}
           </p>
@@ -116,10 +122,29 @@ function EventCard({ event, selected, onSelect }) {
  */
 export function EventSelection() {
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const [events, setEvents] = useState([])
   const [selectedSlug, setSelectedSlug] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+
+  const filterDate = useMemo(() => {
+    const raw = searchParams.get("date")
+    return raw ? parseIsoDate(raw) : undefined
+  }, [searchParams])
+
+  const visibleEvents = useMemo(() => {
+    if (!filterDate) return events
+    return events.filter((e) => e.start_date && eventOnDate(e, filterDate))
+  }, [events, filterDate])
+
+  const filterDateLabel = filterDate
+    ? filterDate.toLocaleDateString("ru-RU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null
 
   const loadEvents = useCallback(() => {
     setLoading(true)
@@ -142,6 +167,11 @@ export function EventSelection() {
   useEffect(() => {
     loadEvents()
   }, [loadEvents, location.key])
+
+  useEffect(() => {
+    if (!filterDate || visibleEvents.length === 0) return
+    setSelectedSlug(visibleEvents[0].slug)
+  }, [filterDate, visibleEvents])
 
   if (loading) {
     return (
@@ -170,19 +200,27 @@ export function EventSelection() {
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6 md:p-8 lg:p-10">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Мероприятия
+          {filterDateLabel ? `Мероприятия на ${filterDateLabel}` : "Мероприятия"}
         </h1>
         <p className="text-sm text-muted-foreground md:text-base">
-          Актуальные события IT-Куб — данные с сервера
+          {filterDateLabel
+            ? visibleEvents.length === 0
+              ? "В этот день нет запланированных мероприятий"
+              : `Найдено: ${visibleEvents.length}`
+            : "Актуальные события IT-Куб — данные с сервера"}
         </p>
       </header>
 
-      {events.length === 0 ? (
-        <p className="text-muted-foreground">Сейчас нет активных мероприятий.</p>
+      {visibleEvents.length === 0 ? (
+        <p className="text-muted-foreground">
+          {filterDateLabel
+            ? "Выберите другую дату в календаре или сбросьте фильтр."
+            : "Сейчас нет активных мероприятий."}
+        </p>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
-            {events.map((event) => (
+            {visibleEvents.map((event) => (
               <EventCard
                 key={event.id}
                 event={event}
