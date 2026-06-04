@@ -28,6 +28,7 @@ import {
 import { DateRangePicker } from "@/components/date-range-picker"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
@@ -539,7 +540,7 @@ export function AdminPage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleAddCase} className="flex flex-wrap items-end gap-3">
-                  <Field>
+                  <Field className="min-w-48 flex-1">
                     <FieldLabel>Название</FieldLabel>
                     <Input
                       value={newCase.name}
@@ -548,7 +549,7 @@ export function AdminPage() {
                     />
                   </Field>
                   <Field>
-                    <FieldLabel>Лимит</FieldLabel>
+                    <FieldLabel>Лимит команд</FieldLabel>
                     <Input
                       type="number"
                       min={1}
@@ -562,6 +563,17 @@ export function AdminPage() {
                   <Button type="submit" size="sm">
                     Добавить
                   </Button>
+                  <Field className="w-full min-w-full basis-full">
+                    <FieldLabel>Описание кейса</FieldLabel>
+                    <Textarea
+                      value={newCase.description}
+                      onChange={(e) =>
+                        setNewCase({ ...newCase, description: e.target.value })
+                      }
+                      placeholder="Задача, требования, контекст для участников"
+                      rows={3}
+                    />
+                  </Field>
                 </form>
               </CardContent>
             </Card>
