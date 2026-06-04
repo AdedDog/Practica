@@ -156,7 +156,7 @@ cp env.docker.example backend/.env
 docker compose up -d --build
 ```
 
-Сайт: http://ваш-сервер (порт `HTTP_PORT` из `env.docker.example`, по умолчанию **80**).  
+Сайт: http://127.0.0.1:8789 (порт `HTTP_PORT` в `.env` у `docker-compose.yml`, по умолчанию **8789** на localhost).  
 Nginx во frontend-контейнере раздаёт статику и проксирует `/api` на backend.  
 База SQLite хранится в Docker-томе `backend-data`.
 
