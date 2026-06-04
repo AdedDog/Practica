@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     admin_password: str = "admin123"
     admin_phone: str = "+79001234567"
 
+    # CORS (через запятую). При деплое за nginx с /api на том же домене не обязателен
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+
     @field_validator("smtp_password", mode="before")
     @classmethod
     def strip_smtp_password_spaces(cls, value: str | None) -> str | None:
@@ -56,6 +59,10 @@ class Settings(BaseSettings):
     @property
     def sends_otp_email(self) -> bool:
         return not self.dev_log_otp and self.smtp_configured
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 # Один объект на всё приложение — импортируем как: from app.config import settings

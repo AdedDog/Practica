@@ -18,6 +18,7 @@ logging.basicConfig(
 logging.getLogger("app.notifications").setLevel(logging.INFO)
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import settings
 from app.database import Base, engine
 from app.migrations import run_migrations
 from app.routers import admin, public, registration, team
@@ -53,10 +54,7 @@ app = FastAPI(
 # CORS: разрешаем браузеру на frontend обращаться к API с другого порта
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -144,6 +144,28 @@ npm run dev
 
 UI: http://127.0.0.1:5173 — запросы к `/api/*` проксируются на backend.
 
+### Docker (деплой на сервер)
+
+Нужны [Docker](https://docs.docker.com/get-docker/) и Docker Compose.
+
+```bash
+# из корня репозитория
+cp env.docker.example backend/.env
+# отредактируйте backend/.env: SECRET_KEY, ADMIN_PASSWORD, SMTP
+
+docker compose up -d --build
+```
+
+Сайт: http://ваш-сервер (порт `HTTP_PORT` из `env.docker.example`, по умолчанию **80**).  
+Nginx во frontend-контейнере раздаёт статику и проксирует `/api` на backend.  
+База SQLite хранится в Docker-томе `backend-data`.
+
+```bash
+docker compose logs -f          # логи
+docker compose down           # остановка
+docker compose up -d --build  # обновление после git pull
+```
+
 ---
 
 ## Безопасность
@@ -169,7 +191,7 @@ UI: http://127.0.0.1:5173 — запросы к `/api/*` проксируютс�
 | Frontend — заглушка UI                |   ✅   |
 | Интеграции                            |   ⬜   |
 | Тестирование                          |   ⬜   |
-| Деплой                                |   ⬜   |
+| Деплой                                |   ✅   |
 
 ---
 
